@@ -50,6 +50,20 @@ Window *get_inactive_windows(Display *dpy, Window root, Window active_window,
         return NULL;
 }
 
+char *get_window_name(Display *dpy, Window window)
+{
+    Atom prop = XInternAtom(dpy, "WM_NAME", False), type;
+    int format;
+    unsigned long extra, len;
+    unsigned char *result;
+
+    if(XGetWindowProperty(dpy, window, prop, 0, 1024, False, AnyPropertyType,
+        &type, &format, &len, &extra, &result) == Success && result)
+            return (char*)result;
+    else
+        return NULL;
+}
+
 int main()
 {
     Display *dpy = XOpenDisplay(NULL);
