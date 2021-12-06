@@ -1,3 +1,4 @@
+#include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 
@@ -66,21 +67,26 @@ char *get_window_name(Display *dpy, Window window)
 
 int main()
 {
+    bool quit = false;
+    int exit_code = 0;
+
     Display *dpy = XOpenDisplay(NULL);
+    if(!dpy) {
+        printf("simxcom: failed to open display");
+        exit_code = 1;
+    }
+
     int screen = DefaultScreen(dpy);
     Window root = RootWindow(dpy, screen);
 
-    if(!(dpy = XOpenDisplay(NULL))) {
-        printf("simxcom: failed to open display");
-        exit(EXIT_FAILURE);
-    }
+    do {
+        Window active_window = get_active_window(dpy, root);
+        int n_windows;
+        Window *inactive_windows = get_inactive_windows(dpy, root,
+            active_window, (unsigned long *)&n_windows);
+        free(inactive_windows);
+    } while(!quit);
 
-    Window active_window = get_active_window(dpy, root);
-    int n_windows;
-    Window *inactive_windows = get_inactive_windows(dpy, root, active_window,
-        (unsigned long *)&n_windows);
-
-    free(inactive_windows);
     XCloseDisplay(dpy);
-    return EXIT_SUCCESS;
+    return exit_code;
 }
