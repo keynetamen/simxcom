@@ -78,15 +78,36 @@ int main()
 
     int screen = DefaultScreen(dpy);
     Window root = RootWindow(dpy, screen);
+    long event_mask = PropertyChangeMask;
+    XSelectInput(dpy, root, event_mask);
+
+    Atom net_active_window = XInternAtom(dpy, "_NET_ACTIVE_WINDOW", True);
+    
+    Window active_window = get_active_window(dpy, root);
+    int n_windows;
+    Window *inactive_windows = get_inactive_windows(dpy, root,
+        active_window, (unsigned long *)&n_windows);
+    
 
     do {
-        Window active_window = get_active_window(dpy, root);
-        int n_windows;
-        Window *inactive_windows = get_inactive_windows(dpy, root,
-            active_window, (unsigned long *)&n_windows);
-        free(inactive_windows);
+        XEvent event;
+        XPropertyEvent property_event;
+        XNextEvent(dpy, &event);
+
+        if(event.type == PropertyNotify) {
+            property_event = event.xproperty;
+            if(property_event.atom == net_active_window) {
+                active_window = get_active_window(dpy, root);
+                if(inactive_windows) {
+                    free(inactive_windows);
+                    inactive_windows = get_inactive_windows(dpy, root,
+                        active_window, (unsigned long *)&n_windows);
+                }
+            }
+        }
     } while(!quit);
 
+    free(inactive_windows);
     XCloseDisplay(dpy);
     return exit_code;
 }
