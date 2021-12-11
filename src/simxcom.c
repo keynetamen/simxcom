@@ -86,9 +86,17 @@ int main()
     Atom net_active_window = XInternAtom(dpy, "_NET_ACTIVE_WINDOW", True);
     
     Window active_window = get_active_window(dpy, root);
+    Window aw_root;
+    int aw_x, aw_y;
+    unsigned int aw_width, aw_height, aw_border_width, aw_depth;
+
     int n_windows;
     Window *inactive_windows = get_inactive_windows(dpy, root,
         active_window, (unsigned long *)&n_windows);
+
+    if(active_window)
+        XGetGeometry(dpy, active_window, &aw_root, &aw_x, &aw_y,
+            &aw_width, &aw_height, &aw_border_width, &aw_depth);
 
     do {
         XEvent event;
@@ -104,6 +112,9 @@ int main()
                     inactive_windows = get_inactive_windows(dpy, root,
                         active_window, (unsigned long *)&n_windows);
                 }
+                if(active_window)
+                    XGetGeometry(dpy, active_window, &aw_root, &aw_x, &aw_y,
+                        &aw_width, &aw_height, &aw_border_width, &aw_depth);
             }
         }
     } while(!quit);
