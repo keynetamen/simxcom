@@ -70,12 +70,12 @@ char *get_window_name(Display *dpy, Window window)
 int main()
 {
     bool quit = false;
-    int exit_code = 0;
+    // int exit_code = 0;
 
     Display *dpy = XOpenDisplay(NULL);
     if(!dpy) {
         printf("simxcom: failed to open display");
-        exit_code = 1;
+        exit(EXIT_FAILURE);
     }
 
     int screen = DefaultScreen(dpy);
@@ -121,5 +121,5 @@ int main()
 
     free(inactive_windows);
     XCloseDisplay(dpy);
-    return exit_code;
+    return EXIT_SUCCESS;
 }
