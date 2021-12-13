@@ -68,7 +68,9 @@ char *get_window_name(Display *dpy, Window window)
         return NULL;
 }
 
-Window overlay_window(Display *dpy, Window root, XVisualInfo vinfo, Window window) {
+Window overlay_window(Display *dpy, Window root, XVisualInfo vinfo,
+    Window window)
+{
     Window w_root;
     int x, y;
     unsigned int width, height, border_width, depth;
