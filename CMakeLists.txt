@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.21)
-project(simxcom VERSION 0.1.0)
+project(simxcom VERSION 0.5)
 
 add_executable(simxcom src/simxcom.c)
 
