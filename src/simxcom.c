@@ -68,6 +68,30 @@ char *get_window_name(Display *dpy, Window window)
         return NULL;
 }
 
+Window overlay_window(Display *dpy, Window root, XVisualInfo vinfo, Window window) {
+    Window w_root;
+    int x, y;
+    unsigned int width, height, border_width, depth;
+    XGetGeometry(dpy, window, &w_root, &x, &y, &width,
+        &height, &border_width, &depth);
+
+    XSetWindowAttributes attrs;
+    attrs.override_redirect = true;
+    attrs.colormap = XCreateColormap(dpy, root, vinfo.visual, AllocNone);
+    attrs.background_pixel = 0;
+    attrs.border_pixel = 0;
+
+    unsigned long value_mask = CWOverrideRedirect | CWColormap | CWBackPixel
+                             | CWBorderPixel;
+    Window overlay = XCreateWindow(dpy, root, x + border_width,
+        y + border_width, width, height, 0, vinfo.depth, InputOutput,
+        vinfo.visual, value_mask, &attrs);
+
+    XMapWindow(dpy, overlay);
+
+    return overlay;
+}
+
 int main()
 {
     bool quit = false;
