@@ -2,6 +2,9 @@
 #include <stdio.h>
 #include <stdlib.h>
 
+#include <cairo/cairo.h>
+#include <cairo/cairo-xlib.h>
+
 #include <X11/Xatom.h>
 #include <X11/Xlib.h>
 #include <X11/Xutil.h>
@@ -94,6 +97,31 @@ Window overlay_window(Display *dpy, Window root, XVisualInfo vinfo,
     return overlay;
 }
 
+void draw_rectangle(cairo_t *cr, int x, int y, int width, int height)
+{
+    cairo_set_source_rgba(cr, 1.0, 0.0, 0.0, 0.1);
+    cairo_rectangle(cr, x, y, width, height);
+    cairo_fill(cr);
+}
+
+Window overlay_active(Display *dpy, Window root, XVisualInfo vinfo,
+    Window active, cairo_surface_t* surf, cairo_t* cr)
+{
+    Window overlay = overlay_window(dpy, root, vinfo, active);
+    Window r;
+    int x, y;
+    unsigned int w, h, bw, d;
+    XGetGeometry(dpy, overlay, &r, &x, &y, &w, &h, &bw, &d);
+
+    surf = cairo_xlib_surface_create(dpy, overlay, vinfo.visual, w, h);
+    cr = cairo_create(surf);
+
+    draw_rectangle(cr, 0, 0, w, h);
+    XFlush(dpy);
+
+    return overlay;
+}
+
 int main()
 {
     bool quit = false;
@@ -120,17 +148,18 @@ int main()
     Atom net_active_window = XInternAtom(dpy, "_NET_ACTIVE_WINDOW", True);
     
     Window active_window = get_active_window(dpy, root);
-    Window aw_root;
-    int aw_x, aw_y;
-    unsigned int aw_width, aw_height, aw_border_width, aw_depth;
 
     int n_windows;
     Window *inactive_windows = get_inactive_windows(dpy, root,
         active_window, (unsigned long *)&n_windows);
 
+    Window overlay;
+    cairo_surface_t* aw_surf = NULL;
+    cairo_t* aw_cr = NULL;
+
     if(active_window)
-        XGetGeometry(dpy, active_window, &aw_root, &aw_x, &aw_y,
-            &aw_width, &aw_height, &aw_border_width, &aw_depth);
+        overlay = overlay_active(dpy, root, vinfo, active_window,
+            aw_surf, aw_cr);
 
     do {
         XEvent event;
@@ -146,13 +175,14 @@ int main()
                     inactive_windows = get_inactive_windows(dpy, root,
                         active_window, (unsigned long *)&n_windows);
                 }
-                if(active_window)
-                    XGetGeometry(dpy, active_window, &aw_root, &aw_x, &aw_y,
-                        &aw_width, &aw_height, &aw_border_width, &aw_depth);
             }
         }
     } while(!quit);
 
+    cairo_destroy(aw_cr);
+    cairo_surface_destroy(aw_surf);
+    XUnmapWindow(dpy, overlay);
+    
     free(inactive_windows);
     XCloseDisplay(dpy);
     return EXIT_SUCCESS;

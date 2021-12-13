@@ -3,4 +3,4 @@ project(simxcom VERSION 0.1.0)
 
 add_executable(simxcom src/simxcom.c)
 
-target_link_libraries(simxcom PRIVATE X11)
+target_link_libraries(simxcom PRIVATE X11 cairo)
