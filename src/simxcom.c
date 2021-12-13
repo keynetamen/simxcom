@@ -4,6 +4,7 @@
 
 #include <X11/Xatom.h>
 #include <X11/Xlib.h>
+#include <X11/Xutil.h>
 
 Window get_active_window(Display *dpy, Window root)
 {
@@ -80,6 +81,13 @@ int main()
 
     int screen = DefaultScreen(dpy);
     Window root = RootWindow(dpy, screen);
+
+    XVisualInfo vinfo;
+    if (!XMatchVisualInfo(dpy, screen, 32, TrueColor, &vinfo)) {
+        printf("simxcom: 32-bit color not supported\n");
+        exit(EXIT_FAILURE);
+    }
+    
     long event_mask = PropertyChangeMask;
     XSelectInput(dpy, root, event_mask);
 
