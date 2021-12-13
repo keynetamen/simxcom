@@ -125,7 +125,7 @@ Window overlay_active(Display *dpy, Window root, XVisualInfo vinfo,
 int main()
 {
     bool quit = false;
-    // int exit_code = 0;
+    /* int exit_code = 0; */
 
     Display *dpy = XOpenDisplay(NULL);
     if(!dpy) {
@@ -169,7 +169,16 @@ int main()
         if(event.type == PropertyNotify) {
             property_event = event.xproperty;
             if(property_event.atom == net_active_window) {
+                if(active_window) { /* destroy previous overlay window */
+                    cairo_destroy(aw_cr);
+                    cairo_surface_destroy(aw_surf);
+                    XUnmapWindow(dpy, overlay);
+                }
                 active_window = get_active_window(dpy, root);
+                if(active_window)
+                    overlay = overlay_active(dpy, root, vinfo,
+                        active_window, aw_surf, aw_cr);
+
                 if(inactive_windows) {
                     free(inactive_windows);
                     inactive_windows = get_inactive_windows(dpy, root,
