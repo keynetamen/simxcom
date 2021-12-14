@@ -39,7 +39,6 @@ Window *get_inactive_windows(Display *dpy, Window root, Window active_window,
     if(XGetWindowProperty(dpy, root, prop, 0, 1024, False, XA_WINDOW, &type,
         &format, n_windows, &extra, &result) == Success && result) {
             client_windows = (Window *)result;
-            /* In case of a virtual desktop with no active window */
             if(active_window)
                 (*n_windows)--;
             inactive_windows = (Window *)malloc(*n_windows * sizeof(Window));
@@ -63,6 +62,9 @@ char *get_window_name(Display *dpy, Window window)
     int format;
     unsigned long extra, len;
     unsigned char *result;
+
+    if(window == None)
+        return NULL;
 
     if(XGetWindowProperty(dpy, window, prop, 0, 1024, False, AnyPropertyType,
         &type, &format, &len, &extra, &result) == Success && result)
