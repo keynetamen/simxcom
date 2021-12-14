@@ -87,9 +87,15 @@ Window overlay_window(Display *dpy, Window root, XVisualInfo vinfo,
     attrs.colormap = XCreateColormap(dpy, root, vinfo.visual, AllocNone);
     attrs.background_pixel = 0;
     attrs.border_pixel = 0;
+    attrs.event_mask = KeyPressMask | KeyReleaseMask | ButtonPressMask
+                     | ButtonReleaseMask | EnterWindowMask | LeaveWindowMask
+                     | PointerMotionMask | Button1MotionMask | Button2MotionMask
+                     | Button3MotionMask | Button4MotionMask | Button5MotionMask
+                     | ButtonMotionMask | KeymapStateMask | StructureNotifyMask
+                     | FocusChangeMask | PropertyChangeMask;
 
     unsigned long value_mask = CWOverrideRedirect | CWColormap | CWBackPixel
-                             | CWBorderPixel;
+                             | CWBorderPixel | CWEventMask;
     Window overlay = XCreateWindow(dpy, root, x + border_width,
         y + border_width, width, height, 0, vinfo.depth, InputOutput,
         vinfo.visual, value_mask, &attrs);
@@ -144,8 +150,8 @@ int main()
         exit(EXIT_FAILURE);
     }
     
-    long event_mask = PropertyChangeMask;
-    XSelectInput(dpy, root, event_mask);
+    long root_event_mask = PropertyChangeMask;
+    XSelectInput(dpy, root, root_event_mask);
 
     Atom net_active_window = XInternAtom(dpy, "_NET_ACTIVE_WINDOW", True);
     
