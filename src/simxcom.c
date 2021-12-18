@@ -73,58 +73,37 @@ char *get_window_name(Display *dpy, Window window)
         return NULL;
 }
 
-Window overlay_window(Display *dpy, Window root, XVisualInfo vinfo,
-    Window window)
-{
-    Window w_root;
-    int x, y;
-    unsigned int width, height, border_width, depth;
-    XGetGeometry(dpy, window, &w_root, &x, &y, &width,
-        &height, &border_width, &depth);
-
-    XSetWindowAttributes attrs;
-    attrs.override_redirect = true;
-    attrs.colormap = XCreateColormap(dpy, root, vinfo.visual, AllocNone);
-    attrs.background_pixel = 0;
-    attrs.border_pixel = 0;
-    attrs.event_mask = KeyPressMask | KeyReleaseMask | ButtonPressMask
-                     | ButtonReleaseMask | EnterWindowMask | LeaveWindowMask
-                     | PointerMotionMask | Button1MotionMask | Button2MotionMask
-                     | Button3MotionMask | Button4MotionMask | Button5MotionMask
-                     | ButtonMotionMask | KeymapStateMask | StructureNotifyMask
-                     | FocusChangeMask | PropertyChangeMask;
-
-    unsigned long value_mask = CWOverrideRedirect | CWColormap | CWBackPixel
-                             | CWBorderPixel | CWEventMask;
-    Window overlay = XCreateWindow(dpy, root, x + border_width,
-        y + border_width, width, height, 0, vinfo.depth, InputOutput,
-        vinfo.visual, value_mask, &attrs);
-
-    XMapWindow(dpy, overlay);
-
-    return overlay;
-}
-
 void draw_rectangle(cairo_t *cr, int x, int y, int width, int height)
 {
-    cairo_set_source_rgba(cr, 1.0, 0.0, 0.0, 0.1);
+    cairo_set_source_rgba(cr, 1.0, 0.0, 0.0, 1.0);
     cairo_rectangle(cr, x, y, width, height);
     cairo_fill(cr);
 }
 
 Window overlay_active(Display *dpy, Window root, XVisualInfo vinfo,
-    Window active, cairo_surface_t* surf, cairo_t* cr)
+    Window active, cairo_surface_t* surf, cairo_t* cr, int width, int height)
 {
-    Window overlay = overlay_window(dpy, root, vinfo, active);
     Window r;
     int x, y;
     unsigned int w, h, bw, d;
-    XGetGeometry(dpy, overlay, &r, &x, &y, &w, &h, &bw, &d);
+    XGetGeometry(dpy, active, &r, &x, &y, &w, &h, &bw, &d);
 
-    surf = cairo_xlib_surface_create(dpy, overlay, vinfo.visual, w, h);
+    XSetWindowAttributes attrs;
+    attrs.colormap = XCreateColormap(dpy, root, vinfo.visual, AllocNone);
+    attrs.border_pixel = 0;
+    unsigned long value_mask = CWColormap | CWBorderPixel;
+    
+    x = w - width;
+    y = 0;
+
+    Window overlay = XCreateWindow(dpy, active, x, y, width, height, 0,
+        vinfo.depth, InputOutput, vinfo.visual, value_mask, &attrs);
+    XMapWindow(dpy, overlay);
+
+    surf = cairo_xlib_surface_create(dpy, overlay, vinfo.visual, width, height);
     cr = cairo_create(surf);
 
-    draw_rectangle(cr, 0, 0, w, h);
+    draw_rectangle(cr, 0, 0, width, height);
     XFlush(dpy);
 
     return overlay;
@@ -165,9 +144,11 @@ int main()
     cairo_surface_t* aw_surf = NULL;
     cairo_t* aw_cr = NULL;
 
+    int width  = 50;
+    int height = 50;
     if(active_window)
         overlay = overlay_active(dpy, root, vinfo, active_window,
-            aw_surf, aw_cr);
+            aw_surf, aw_cr, width, height);
 
     do {
         XEvent event;
@@ -180,12 +161,12 @@ int main()
                 if(active_window) { /* destroy previous overlay window */
                     cairo_destroy(aw_cr);
                     cairo_surface_destroy(aw_surf);
-                    XUnmapWindow(dpy, overlay);
+                    XDestroyWindow(dpy, overlay);
                 }
                 active_window = get_active_window(dpy, root);
                 if(active_window)
                     overlay = overlay_active(dpy, root, vinfo,
-                        active_window, aw_surf, aw_cr);
+                        active_window, aw_surf, aw_cr, width, height);
 
                 if(inactive_windows) {
                     free(inactive_windows);
@@ -198,7 +179,7 @@ int main()
 
     cairo_destroy(aw_cr);
     cairo_surface_destroy(aw_surf);
-    XUnmapWindow(dpy, overlay);
+    XDestroyWindow(dpy, overlay);
     
     free(inactive_windows);
     XCloseDisplay(dpy);
