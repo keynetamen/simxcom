@@ -109,6 +109,42 @@ Window overlay_active(Display *dpy, Window root, XVisualInfo vinfo,
     return overlay;
 }
 
+Window *overlay_inactive(Display *dpy, Window root, XVisualInfo vinfo,
+    Window *windows, int n_windows, cairo_surface_t **surfs, cairo_t **crs)
+{
+    Window *inactive_overlays = (Window *)malloc(n_windows * sizeof(Window));
+    surfs = (cairo_surface_t **)malloc(n_windows * sizeof(cairo_surface_t*));
+    crs = (cairo_t **)malloc(n_windows * sizeof(cairo_t*));
+
+    XSetWindowAttributes attrs;
+    attrs.colormap = XCreateColormap(dpy, root, vinfo.visual, AllocNone);
+    attrs.border_pixel = 0;
+    unsigned long value_mask = CWColormap | CWBorderPixel;
+
+    for(int i = 0; i < n_windows; i++) {
+        Window current = windows[i];
+        Window r;
+        int x, y;
+        unsigned int w, h, bw, d;
+        XGetGeometry(dpy, current, &r, &x, &y, &w, &h, &bw, &d);
+
+        Window overlay = XCreateWindow(dpy, current, 0, 0, w, h, 0,
+        vinfo.depth, InputOutput, vinfo.visual, value_mask, &attrs);
+
+        XMapWindow(dpy, overlay);
+
+        surfs[i] = cairo_xlib_surface_create(dpy, overlay, vinfo.visual, w, h);
+        crs[i] = cairo_create(surfs[i]);
+
+        draw_rectangle(crs[i], 0, 0, w, h);
+        XFlush(dpy);
+
+        inactive_overlays[i] = overlay;
+    }
+
+    return inactive_overlays;
+}
+
 int main()
 {
     bool quit = false;
@@ -144,11 +180,19 @@ int main()
     cairo_surface_t *aw_surf = NULL;
     cairo_t *aw_cr = NULL;
 
+    Window *iw_overlays;
+    cairo_surface_t **iw_surfs = NULL;
+    cairo_t **iw_crs = NULL;
+
     int width  = 50;
     int height = 50;
     if(active_window)
         aw_overlay = overlay_active(dpy, root, vinfo, active_window,
             aw_surf, aw_cr, width, height);
+
+    if(inactive_windows)
+        iw_overlays = overlay_inactive(dpy, root, vinfo, inactive_windows,
+            n_windows, iw_surfs, iw_crs);
 
     do {
         XEvent event;
@@ -169,9 +213,16 @@ int main()
                         active_window, aw_surf, aw_cr, width, height);
 
                 if(inactive_windows) {
+                    for(int i = 0; i < n_windows; i++)
+                        XDestroyWindow(dpy, iw_overlays[i]);
+                    free(iw_crs);
+                    free(iw_surfs);
+                    free(iw_overlays);
                     free(inactive_windows);
                     inactive_windows = get_inactive_windows(dpy, root,
                         active_window, (unsigned long *)&n_windows);
+                    iw_overlays = overlay_inactive(dpy, root, vinfo,
+                        inactive_windows, n_windows, iw_surfs, iw_crs);
                 }
             }
         }
@@ -180,7 +231,13 @@ int main()
     cairo_destroy(aw_cr);
     cairo_surface_destroy(aw_surf);
     XDestroyWindow(dpy, aw_overlay);
-    
+
+    for(int i = 0; i < n_windows; i++)
+        cairo_destroy(iw_crs[i]);
+    free(iw_crs);
+    free(iw_surfs);
+    free(iw_overlays);
+
     free(inactive_windows);
     XCloseDisplay(dpy);
     return EXIT_SUCCESS;
