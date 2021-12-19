@@ -140,14 +140,14 @@ int main()
     Window *inactive_windows = get_inactive_windows(dpy, root,
         active_window, (unsigned long *)&n_windows);
 
-    Window overlay;
-    cairo_surface_t* aw_surf = NULL;
-    cairo_t* aw_cr = NULL;
+    Window aw_overlay;
+    cairo_surface_t *aw_surf = NULL;
+    cairo_t *aw_cr = NULL;
 
     int width  = 50;
     int height = 50;
     if(active_window)
-        overlay = overlay_active(dpy, root, vinfo, active_window,
+        aw_overlay = overlay_active(dpy, root, vinfo, active_window,
             aw_surf, aw_cr, width, height);
 
     do {
@@ -158,14 +158,14 @@ int main()
         if(event.type == PropertyNotify) {
             property_event = event.xproperty;
             if(property_event.atom == net_active_window) {
-                if(active_window) { /* destroy previous overlay window */
+                if(active_window) { /* destroy previous aw_overlay window */
                     cairo_destroy(aw_cr);
                     cairo_surface_destroy(aw_surf);
-                    XDestroyWindow(dpy, overlay);
+                    XDestroyWindow(dpy, aw_overlay);
                 }
                 active_window = get_active_window(dpy, root);
                 if(active_window)
-                    overlay = overlay_active(dpy, root, vinfo,
+                    aw_overlay = overlay_active(dpy, root, vinfo,
                         active_window, aw_surf, aw_cr, width, height);
 
                 if(inactive_windows) {
@@ -179,7 +179,7 @@ int main()
 
     cairo_destroy(aw_cr);
     cairo_surface_destroy(aw_surf);
-    XDestroyWindow(dpy, overlay);
+    XDestroyWindow(dpy, aw_overlay);
     
     free(inactive_windows);
     XCloseDisplay(dpy);
