@@ -2,6 +2,7 @@
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 
 #include <cairo/cairo.h>
 #include <cairo/cairo-xlib.h>
@@ -157,10 +158,45 @@ void die(const char *format, ...)
     exit(EXIT_FAILURE);
 }
 
-int main()
+void usage() {
+    printf("usage: %s [options]\n%s", PROGRAM_NAME,
+           "where options are:\n"
+           "-ac <hex_color>\n"
+           "-ic <hex_color>\n"
+           "-ag <width>x<height>\n"
+           "-ig <width>x<height>\n");
+}
+
+int main(int argc, char **argv)
 {
     bool quit = false;
     /* int exit_code = 0; */
+    
+    /* Parse command line arguments */
+    bool help = false;
+    bool version = false;
+
+    for(int i = 1; i < argc; i++) {
+        if(!strcmp("-help", argv[i]) || !strcmp("--help", argv[i])) {
+            help = true;
+            break;
+        }
+        if(!strcmp("-v", argv[i]) || !strcmp("--version", argv[i])) {
+            version = true;
+            break;
+        }
+        fprintf(stderr, "unrecognized option '%s'\n", argv[i]);
+    }
+
+    if(help) {
+        usage();
+        exit(EXIT_SUCCESS);
+    }
+    if(version) {
+        fprintf(stdout, "%s %s\n", PROGRAM_NAME, VERSION);
+        exit(EXIT_SUCCESS);
+    }
+
 
     Display *dpy = XOpenDisplay(NULL);
     if(!dpy)
