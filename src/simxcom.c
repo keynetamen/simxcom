@@ -1,3 +1,4 @@
+#include <stdarg.h>
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -145,25 +146,32 @@ Window *overlay_inactive(Display *dpy, Window root, XVisualInfo vinfo,
     return inactive_overlays;
 }
 
+void die(const char *format, ...)
+{
+    va_list ap;
+
+    va_start(ap, format);
+    fprintf(stderr, "%s: ", PROGRAM_NAME);
+    vfprintf(stderr, format, ap);
+    va_end(ap);
+    exit(EXIT_FAILURE);
+}
+
 int main()
 {
     bool quit = false;
     /* int exit_code = 0; */
 
     Display *dpy = XOpenDisplay(NULL);
-    if(!dpy) {
-        printf("simxcom: failed to open display");
-        exit(EXIT_FAILURE);
-    }
+    if(!dpy)
+        die("failed to open display\n");
 
     int screen = DefaultScreen(dpy);
     Window root = RootWindow(dpy, screen);
 
     XVisualInfo vinfo;
-    if (!XMatchVisualInfo(dpy, screen, 32, TrueColor, &vinfo)) {
-        printf("simxcom: 32-bit color not supported\n");
-        exit(EXIT_FAILURE);
-    }
+    if (!XMatchVisualInfo(dpy, screen, 32, TrueColor, &vinfo))
+        die("32-bit color not supported\n");
     
     long root_event_mask = PropertyChangeMask;
     XSelectInput(dpy, root, root_event_mask);
