@@ -156,13 +156,14 @@ Window *overlay_inactive(Display *dpy, Window root, XVisualInfo vinfo,
     return inactive_overlays;
 }
 
-void die(const char *format, ...)
+void die(const char *message, ...)
 {
     va_list ap;
 
-    va_start(ap, format);
+    va_start(ap, message);
     fprintf(stderr, "%s: ", PROGRAM_NAME);
-    vfprintf(stderr, format, ap);
+    vfprintf(stderr, message, ap);
+    fputc('\n', stderr);
     va_end(ap);
     exit(EXIT_FAILURE);
 }
@@ -233,7 +234,7 @@ int main(int argc, char **argv)
             version = true;
             break;
         }
-        fprintf(stderr, "unrecognized option '%s'\n", argv[i]);
+        die("unrecognized option '%s'", argv[i]);
     }
 
     if(help) {
@@ -248,14 +249,14 @@ int main(int argc, char **argv)
 
     Display *dpy = XOpenDisplay(NULL);
     if(!dpy)
-        die("failed to open display\n");
+        die("failed to open display");
 
     int screen = DefaultScreen(dpy);
     Window root = RootWindow(dpy, screen);
 
     XVisualInfo vinfo;
     if (!XMatchVisualInfo(dpy, screen, 32, TrueColor, &vinfo))
-        die("32-bit color not supported\n");
+        die("32-bit color not supported");
     
     long root_event_mask = PropertyChangeMask;
     XSelectInput(dpy, root, root_event_mask);
