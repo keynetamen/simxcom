@@ -84,15 +84,16 @@ char *get_window_name(Display *dpy, Window window)
         return NULL;
 }
 
-void draw_rectangle(cairo_t *cr, int x, int y, int width, int height)
+void draw_rectangle(cairo_t *cr, int x, int y, int w, int h, Color c)
 {
-    cairo_set_source_rgba(cr, 1.0, 0.0, 0.0, 1.0);
-    cairo_rectangle(cr, x, y, width, height);
+    cairo_set_source_rgba(cr, c.red, c.green, c.blue, c.alpha);
+    cairo_rectangle(cr, x, y, w, h);
     cairo_fill(cr);
 }
 
 Window overlay_active(Display *dpy, Window root, XVisualInfo vinfo,
-    Window active, cairo_surface_t* surf, cairo_t* cr, int width, int height)
+    Window active, cairo_surface_t* surf, cairo_t* cr, int width, int height,
+    Color color)
 {
     Window r;
     int x, y;
@@ -114,14 +115,15 @@ Window overlay_active(Display *dpy, Window root, XVisualInfo vinfo,
     surf = cairo_xlib_surface_create(dpy, overlay, vinfo.visual, width, height);
     cr = cairo_create(surf);
 
-    draw_rectangle(cr, 0, 0, width, height);
+    draw_rectangle(cr, 0, 0, width, height, color);
     XFlush(dpy);
 
     return overlay;
 }
 
 Window *overlay_inactive(Display *dpy, Window root, XVisualInfo vinfo,
-    Window *windows, int n_windows, cairo_surface_t **surfs, cairo_t **crs)
+    Window *windows, int n_windows, cairo_surface_t **surfs, cairo_t **crs,
+    Color color)
 {
     Window *inactive_overlays = (Window *)malloc(n_windows * sizeof(Window));
     surfs = (cairo_surface_t **)malloc(n_windows * sizeof(cairo_surface_t*));
@@ -147,7 +149,7 @@ Window *overlay_inactive(Display *dpy, Window root, XVisualInfo vinfo,
         surfs[i] = cairo_xlib_surface_create(dpy, overlay, vinfo.visual, w, h);
         crs[i] = cairo_create(surfs[i]);
 
-        draw_rectangle(crs[i], 0, 0, w, h);
+        draw_rectangle(crs[i], 0, 0, w, h, color);
         XFlush(dpy);
 
         inactive_overlays[i] = overlay;
@@ -224,6 +226,10 @@ int main(int argc, char **argv)
     /* Parse command line arguments */
     bool help = false;
     bool version = false;
+    Color ac;
+    bool ac_set = false;
+    Color ic;
+    bool ic_set = false;
 
     for(int i = 1; i < argc; i++) {
         if(!strcmp("-help", argv[i]) || !strcmp("--help", argv[i])) {
@@ -233,6 +239,20 @@ int main(int argc, char **argv)
         if(!strcmp("-v", argv[i]) || !strcmp("--version", argv[i])) {
             version = true;
             break;
+        }
+        if(!strcmp("-ac", argv[i])) {
+            if(++i >= argc)
+                die("%s requires an argument", argv[i-1]);
+            ac = parse_color(argv[i]);
+            ac_set = true;
+            continue;
+        }
+        if(!strcmp("-ic", argv[i])) {
+            if(++i >= argc)
+                die("%s requires an argument", argv[i-1]);
+            ic = parse_color(argv[i]);
+            ic_set = true;
+            continue;
         }
         die("unrecognized option '%s'", argv[i]);
     }
@@ -269,6 +289,15 @@ int main(int argc, char **argv)
     Window *inactive_windows = get_inactive_windows(dpy, root,
         active_window, (unsigned long *)&n_windows);
 
+    if(!ac_set) {
+        ac.alpha = ac.red   = 1.0;
+        ac.green = ac.blue  = 0.0;
+    }
+    if(!ic_set) {
+        ic.alpha = ic.red   = 1.0;
+        ic.green = ic.blue  = 0.0;
+    }
+
     Window aw_overlay;
     cairo_surface_t *aw_surf = NULL;
     cairo_t *aw_cr = NULL;
@@ -281,11 +310,11 @@ int main(int argc, char **argv)
     int height = 50;
     if(active_window)
         aw_overlay = overlay_active(dpy, root, vinfo, active_window,
-            aw_surf, aw_cr, width, height);
+            aw_surf, aw_cr, width, height, ac);
 
     if(inactive_windows)
         iw_overlays = overlay_inactive(dpy, root, vinfo, inactive_windows,
-            n_windows, iw_surfs, iw_crs);
+            n_windows, iw_surfs, iw_crs, ic);
 
     do {
         XEvent event;
@@ -303,7 +332,7 @@ int main(int argc, char **argv)
                 active_window = get_active_window(dpy, root);
                 if(active_window)
                     aw_overlay = overlay_active(dpy, root, vinfo,
-                        active_window, aw_surf, aw_cr, width, height);
+                        active_window, aw_surf, aw_cr, width, height, ac);
 
                 if(inactive_windows) {
                     for(int i = 0; i < n_windows; i++)
@@ -315,7 +344,7 @@ int main(int argc, char **argv)
                     inactive_windows = get_inactive_windows(dpy, root,
                         active_window, (unsigned long *)&n_windows);
                     iw_overlays = overlay_inactive(dpy, root, vinfo,
-                        inactive_windows, n_windows, iw_surfs, iw_crs);
+                        inactive_windows, n_windows, iw_surfs, iw_crs, ic);
                 }
             }
         }
