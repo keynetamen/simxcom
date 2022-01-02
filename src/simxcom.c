@@ -3,6 +3,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <ctype.h>
+#include <math.h>
 
 #include <cairo/cairo.h>
 #include <cairo/cairo-xlib.h>
@@ -10,6 +12,13 @@
 #include <X11/Xatom.h>
 #include <X11/Xlib.h>
 #include <X11/Xutil.h>
+
+typedef struct {
+    float red;
+    float green;
+    float blue;
+    float alpha;
+} Color;
 
 Window get_active_window(Display *dpy, Window root)
 {
@@ -165,6 +174,45 @@ void usage() {
            "-ic <hex_color>\n"
            "-ag <width>x<height>\n"
            "-ig <width>x<height>\n");
+}
+
+int htoi(char c)
+{
+    c = tolower(c);
+    char hex[16] = "0123456789abcdef";
+
+    for(int i = 0; i < 16; i++)
+        if(c == hex[i])
+            return i;
+}
+
+double round_to(double x, double dp)
+{
+    return round(x * pow(10, dp)) / pow(10, dp);
+}
+
+Color parse_color(char *str)
+{
+    if(strlen(str) != 8)
+        die("'%s' invalid color", str);
+    else if(str[0] != '0' || str[1] != 'x')
+        die("'%s' invalid color", str);
+    for(int i = 2; i < 8; i++)
+        if(!isxdigit(str[i]))
+            die("'%s' invalid color", str);
+
+    double r, g, b; 
+    r = (htoi(str[2]) * 16 + htoi(str[3])) / 255.0;
+    g = (htoi(str[4]) * 16 + htoi(str[5])) / 255.0;
+    b = (htoi(str[6]) * 16 + htoi(str[7])) / 255.0;
+
+    Color color;
+    color.red   = round_to(r, 2);
+    color.green = round_to(g, 2);
+    color.blue  = round_to(b, 2);
+    color.alpha = 1.0;
+
+    return color;
 }
 
 int main(int argc, char **argv)
