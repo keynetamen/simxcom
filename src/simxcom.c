@@ -197,12 +197,12 @@ double round_to(double x, double dp)
 Color parse_color(char *str)
 {
     if(strlen(str) != 8)
-        die("'%s' invalid color", str);
+        die("invalid color argument: '%s'", str);
     else if(str[0] != '0' || str[1] != 'x')
-        die("'%s' invalid color", str);
+        die("invalid color argument: '%s'", str);
     for(int i = 2; i < 8; i++)
         if(!isxdigit(str[i]))
-            die("'%s' invalid color", str);
+            die("invalid color argument: '%s'", str);
 
     double r, g, b; 
     r = (htoi(str[2]) * 16 + htoi(str[3])) / 255.0;
