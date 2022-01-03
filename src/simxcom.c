@@ -230,8 +230,8 @@ int main(int argc, char **argv)
     bool ac_set = false;
     Color ic;
     bool ic_set = false;
-    int width , height;
-    bool size_set = false;
+    int bw , bh;
+    bool box_size_set = false;
 
     for(int i = 1; i < argc; i++) {
         if(!strcmp("-help", argv[i]) || !strcmp("--help", argv[i])) {
@@ -259,11 +259,11 @@ int main(int argc, char **argv)
         if(!strcmp("-ag", argv[i])) {
             if(++i >= argc)
                 die("%s requires an argument", argv[i-1]);
-            if(sscanf(argv[i], "%dx%d", &width, &height) == 2)
-                size_set = true;
+            if(sscanf(argv[i], "%dx%d", &bw, &bh) == 2)
+                box_size_set = true;
             else
                 die("invalid size argument: '%s'", argv[i]);
-            if(width <= 0 || height <= 0)
+            if(bw <= 0 || bh <= 0)
                 die("box geometry must be greater than zero");
             continue;
         }
@@ -310,8 +310,8 @@ int main(int argc, char **argv)
         ic.alpha = ic.red   = 1.0;
         ic.green = ic.blue  = 0.0;
     }
-    if(!size_set)
-        width = height = 50;
+    if(!box_size_set)
+        bw = bh = 50;
 
     Window aw_overlay;
     cairo_surface_t *aw_surf = NULL;
@@ -323,7 +323,7 @@ int main(int argc, char **argv)
 
     if(active_window)
         aw_overlay = overlay_active(dpy, root, vinfo, active_window,
-            aw_surf, aw_cr, width, height, ac);
+            aw_surf, aw_cr, bw, bh, ac);
 
     if(inactive_windows)
         iw_overlays = overlay_inactive(dpy, root, vinfo, inactive_windows,
@@ -345,7 +345,7 @@ int main(int argc, char **argv)
                 active_window = get_active_window(dpy, root);
                 if(active_window)
                     aw_overlay = overlay_active(dpy, root, vinfo,
-                        active_window, aw_surf, aw_cr, width, height, ac);
+                        active_window, aw_surf, aw_cr, bw, bh, ac);
 
                 if(inactive_windows) {
                     for(int i = 0; i < n_windows; i++)
