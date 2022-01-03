@@ -235,6 +235,8 @@ int main(int argc, char **argv)
     bool ic_set = false;
     int bw , bh;
     bool box_size_set = false;
+    int iww, iwh;
+    bool iw_size_set = false;
 
     for(int i = 1; i < argc; i++) {
         if(!strcmp("-help", argv[i]) || !strcmp("--help", argv[i])) {
@@ -268,6 +270,17 @@ int main(int argc, char **argv)
                 die("invalid size argument: '%s'", argv[i]);
             if(bw <= 0 || bh <= 0)
                 die("box geometry must be greater than zero");
+            continue;
+        }
+        if(!strcmp("-ig", argv[i])) {
+            if(++i >= argc)
+                die("%s requires an argument", argv[i-1]);
+            if(sscanf(argv[i], "%dx%d", &iww, &iwh) == 2)
+                iw_size_set = true;
+            else
+                die("invalid size argument: '%s'", argv[i]);
+            if(iww <= 0 || iwh <= 0)
+                die("inactive window geometry must be greater than zero");
             continue;
         }
         die("unrecognized option '%s'", argv[i]);
@@ -315,6 +328,8 @@ int main(int argc, char **argv)
     }
     if(!box_size_set)
         bw = bh = 50;
+    if(!iw_size_set)
+        iww = iwh = 0;
 
     Window aw_overlay;
     cairo_surface_t *aw_surf = NULL;
@@ -330,7 +345,7 @@ int main(int argc, char **argv)
 
     if(inactive_windows)
         iw_overlays = overlay_inactive(dpy, root, vinfo, inactive_windows,
-            n_windows, iw_surfs, iw_crs, ic, 0, 0);
+            n_windows, iw_surfs, iw_crs, ic, iww, iwh);
 
     do {
         XEvent event;
@@ -361,7 +376,7 @@ int main(int argc, char **argv)
                         active_window, (unsigned long *)&n_windows);
                     iw_overlays = overlay_inactive(dpy, root, vinfo,
                         inactive_windows, n_windows, iw_surfs, iw_crs,
-                        ic, 0, 0);
+                        ic, iww, iwh);
                 }
             }
         }
