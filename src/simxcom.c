@@ -123,7 +123,7 @@ Window overlay_active(Display *dpy, Window root, XVisualInfo vinfo,
 
 Window *overlay_inactive(Display *dpy, Window root, XVisualInfo vinfo,
     Window *windows, int n_windows, cairo_surface_t **surfs, cairo_t **crs,
-    Color color)
+    Color color, int width, int height)
 {
     Window *inactive_overlays = (Window *)malloc(n_windows * sizeof(Window));
     surfs = (cairo_surface_t **)malloc(n_windows * sizeof(cairo_surface_t*));
@@ -136,6 +136,9 @@ Window *overlay_inactive(Display *dpy, Window root, XVisualInfo vinfo,
 
     for(int i = 0; i < n_windows; i++) {
         Window current = windows[i];
+        if(width != 0 && height != 0)
+            XResizeWindow(dpy, current, (unsigned int)width,
+                (unsigned int)height);
         Window r;
         int x, y;
         unsigned int w, h, bw, d;
@@ -327,7 +330,7 @@ int main(int argc, char **argv)
 
     if(inactive_windows)
         iw_overlays = overlay_inactive(dpy, root, vinfo, inactive_windows,
-            n_windows, iw_surfs, iw_crs, ic);
+            n_windows, iw_surfs, iw_crs, ic, 0, 0);
 
     do {
         XEvent event;
@@ -357,7 +360,8 @@ int main(int argc, char **argv)
                     inactive_windows = get_inactive_windows(dpy, root,
                         active_window, (unsigned long *)&n_windows);
                     iw_overlays = overlay_inactive(dpy, root, vinfo,
-                        inactive_windows, n_windows, iw_surfs, iw_crs, ic);
+                        inactive_windows, n_windows, iw_surfs, iw_crs,
+                        ic, 0, 0);
                 }
             }
         }
