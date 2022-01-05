@@ -1,5 +1,4 @@
 # simxcom
-=======
 
 Marks the active window to make it easy to spot
 
