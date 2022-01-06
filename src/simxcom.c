@@ -249,6 +249,10 @@ int main(int argc, char **argv)
     bool box_size_set = false;
     int iww, iwh;
     bool iw_size_set = false;
+    int ao;
+    bool ao_set = false;
+    int io;
+    bool io_set = false;
 
     /* Parse command line arguments */
     for(int i = 1; i < argc; i++) {
@@ -296,6 +300,24 @@ int main(int argc, char **argv)
                 die("inactive window geometry must be greater than zero");
             continue;
         }
+        if(!strcmp("-ao", argv[i])) {
+            if(++i >= argc)
+                die("%s requires an argument", argv[i-1]);
+            ao = atoi(argv[i]);
+            if(ao < 0 || ao > 255)
+                die("opacity must be a value between 0 and 256");
+            ao_set = true;
+            continue;
+        }
+        if(!strcmp("-io", argv[i])) {
+            if(++i >= argc)
+                die("%s requires an argument", argv[i-1]);
+            io = atoi(argv[i]);
+            if(io < 0 || io > 255)
+                die("opacity must be a value between 0 and 256");
+            io_set = true;
+            continue;
+        }
         die("unrecognized option '%s'", argv[i]);
     }
 
@@ -322,13 +344,21 @@ int main(int argc, char **argv)
         active_window, (unsigned long *)&n_windows);
 
     if(!ac_set) {
-        ac.alpha = ac.red   = 1.0;
-        ac.green = ac.blue  = 0.0;
+        ac.alpha = 1.0;
+        ac.red   = 1.0;
+        ac.green = 0.0;
+        ac.blue  = 0.0;
     }
     if(!ic_set) {
-        ic.alpha = ic.red   = 1.0;
-        ic.green = ic.blue  = 0.0;
+        ic.alpha = 1.0;
+        ic.red   = 1.0;
+        ic.green = 0.0;
+        ic.blue  = 0.0;
     }
+    if(ao_set)
+        ac.alpha = ao / 255.0;
+    if(io_set)
+        ic.alpha = io / 255.0;
     if(!box_size_set)
         bw = bh = 50;
     if(!iw_size_set)
