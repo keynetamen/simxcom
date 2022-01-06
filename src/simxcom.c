@@ -300,6 +300,10 @@ int main(int argc, char **argv)
     if(!dpy)
         die("failed to open display");
 
+    Atom supported = XInternAtom(dpy, "_NET_SUPPORTED", True);
+    if(supported == None)
+        die("EWMH not supported");
+
     int screen = DefaultScreen(dpy);
     Window root = RootWindow(dpy, screen);
 
