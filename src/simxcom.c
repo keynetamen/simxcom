@@ -13,12 +13,12 @@
 #include <X11/Xlib.h>
 #include <X11/Xutil.h>
 
-typedef struct {
+typedef struct Color {
     float red;
     float green;
     float blue;
     float alpha;
-} Color;
+} col;
 
 Window get_active_window(Display *dpy, Window root)
 {
@@ -84,7 +84,7 @@ char *get_window_name(Display *dpy, Window window)
         return NULL;
 }
 
-void draw_rectangle(cairo_t *cr, int x, int y, int w, int h, Color c)
+void draw_rectangle(cairo_t *cr, int x, int y, int w, int h, col c)
 {
     cairo_set_source_rgba(cr, c.red, c.green, c.blue, c.alpha);
     cairo_rectangle(cr, x, y, w, h);
@@ -93,7 +93,7 @@ void draw_rectangle(cairo_t *cr, int x, int y, int w, int h, Color c)
 
 Window overlay_active(Display *dpy, Window root, XVisualInfo vinfo,
     Window active, cairo_surface_t* surf, cairo_t* cr, int width, int height,
-    Color color)
+    col color)
 {
     Window r;
     int x, y;
@@ -123,7 +123,7 @@ Window overlay_active(Display *dpy, Window root, XVisualInfo vinfo,
 
 Window *overlay_inactive(Display *dpy, Window root, XVisualInfo vinfo,
     Window *windows, int n_windows, cairo_surface_t **surfs, cairo_t **crs,
-    Color color, int width, int height)
+    col color, int width, int height)
 {
     Window *inactive_overlays = (Window *)malloc(n_windows * sizeof(Window));
     surfs = (cairo_surface_t **)malloc(n_windows * sizeof(cairo_surface_t*));
@@ -197,7 +197,7 @@ double round_to(double x, double dp)
     return round(x * pow(10, dp)) / pow(10, dp);
 }
 
-Color parse_color(char *str)
+col parse_color(char *str)
 {
     if(strlen(str) != 8)
         die("invalid color argument: '%s'", str);
@@ -212,7 +212,7 @@ Color parse_color(char *str)
     g = (htoi(str[4]) * 16 + htoi(str[5])) / 255.0;
     b = (htoi(str[6]) * 16 + htoi(str[7])) / 255.0;
 
-    Color color;
+    col color;
     color.red   = round_to(r, 2);
     color.green = round_to(g, 2);
     color.blue  = round_to(b, 2);
@@ -241,9 +241,9 @@ int main(int argc, char **argv)
 
     bool help = false;
     bool version = false;
-    Color ac;
+    col ac;
     bool ac_set = false;
-    Color ic;
+    col ic;
     bool ic_set = false;
     int bw , bh;
     bool box_size_set = false;
