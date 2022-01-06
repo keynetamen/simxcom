@@ -223,10 +223,22 @@ Color parse_color(char *str)
 
 int main(int argc, char **argv)
 {
-    bool quit = false;
-    /* int exit_code = 0; */
-    
-    /* Parse command line arguments */
+    Display *dpy = XOpenDisplay(NULL);
+    if(!dpy)
+        die("failed to open display");
+
+    Atom supported = XInternAtom(dpy, "_NET_SUPPORTED", True);
+    if(supported == None)
+        die("EWMH not supported");
+
+    int screen = DefaultScreen(dpy);
+    Window root = RootWindow(dpy, screen);
+
+    XVisualInfo vinfo;
+    if (!XMatchVisualInfo(dpy, screen, 32, TrueColor, &vinfo))
+        die("32-bit color not supported");
+
+
     bool help = false;
     bool version = false;
     Color ac;
@@ -238,6 +250,7 @@ int main(int argc, char **argv)
     int iww, iwh;
     bool iw_size_set = false;
 
+    /* Parse command line arguments */
     for(int i = 1; i < argc; i++) {
         if(!strcmp("-help", argv[i]) || !strcmp("--help", argv[i])) {
             help = true;
@@ -295,22 +308,8 @@ int main(int argc, char **argv)
         exit(EXIT_SUCCESS);
     }
 
+    bool quit = false;
 
-    Display *dpy = XOpenDisplay(NULL);
-    if(!dpy)
-        die("failed to open display");
-
-    Atom supported = XInternAtom(dpy, "_NET_SUPPORTED", True);
-    if(supported == None)
-        die("EWMH not supported");
-
-    int screen = DefaultScreen(dpy);
-    Window root = RootWindow(dpy, screen);
-
-    XVisualInfo vinfo;
-    if (!XMatchVisualInfo(dpy, screen, 32, TrueColor, &vinfo))
-        die("32-bit color not supported");
-    
     long root_event_mask = PropertyChangeMask;
     XSelectInput(dpy, root, root_event_mask);
 
