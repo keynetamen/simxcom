@@ -50,16 +50,30 @@ Window *get_inactive_windows(Display *dpy, Window root, Window active_window,
     if(XGetWindowProperty(dpy, root, prop, 0, 1024, False, XA_WINDOW, &type,
         &format, n_windows, &extra, &result) == Success && result) {
             client_windows = (Window *)result;
+            unsigned long mapped = 0;
+            XWindowAttributes attr;
+            for(int i = 0; i < *n_windows; i++) {
+                XGetWindowAttributes(dpy, client_windows[i], &attr);
+                if(attr.map_state == IsViewable)
+                    mapped++;
+            }
             if(active_window)
-                (*n_windows)--;
-            inactive_windows = (Window *)malloc(*n_windows * sizeof(Window));
+                mapped--;
+            if(mapped == 0) {
+                XFree(client_windows);
+                return NULL;    
+            }
+            inactive_windows = (Window *)malloc(mapped * sizeof(Window));
 
-            for(int i = 0, j = 0; i < *n_windows + 1; i++) {
-                if(client_windows[i] != active_window) {
+            for(int i = 0, j = 0; i < *n_windows; i++) {
+                XGetWindowAttributes(dpy, client_windows[i], &attr);
+                if(client_windows[i] != active_window
+                    && attr.map_state == IsViewable) {
                     inactive_windows[j] = client_windows[i];
                     j++;
                 }
             }
+            *n_windows = mapped;
             XFree(client_windows);
             return inactive_windows;
     }
@@ -405,12 +419,13 @@ int main(int argc, char **argv)
                     free(iw_surfs);
                     free(iw_overlays);
                     free(inactive_windows);
-                    inactive_windows = get_inactive_windows(dpy, root,
-                        active_window, (unsigned long *)&n_windows);
+                }
+                inactive_windows = get_inactive_windows(dpy, root,
+                    active_window, (unsigned long *)&n_windows);
+                if(inactive_windows)
                     iw_overlays = overlay_inactive(dpy, root, vinfo,
                         inactive_windows, n_windows, iw_surfs, iw_crs,
                         ic, iww, iwh);
-                }
             }
         }
     } while(!quit);
