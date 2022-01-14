@@ -83,7 +83,7 @@ Window *get_inactive_windows(Display *dpy, Window root, Window active_window,
 
 char *get_window_name(Display *dpy, Window window)
 {
-    Atom prop = XInternAtom(dpy, "WM_NAME", False), type;
+    Atom prop = XInternAtom(dpy, "WM_NAME", True), type;
     int format;
     unsigned long extra, len;
     unsigned char *result;
@@ -193,7 +193,9 @@ void usage() {
            "-ac <hex_color>\n"
            "-ic <hex_color>\n"
            "-ag <width>x<height>\n"
-           "-ig <width>x<height>\n");
+           "-ig <width>x<height>\n"
+           "-ao <opacity>\n"
+           "-io <opacity>\n");
 }
 
 int htoi(char c)
@@ -241,6 +243,7 @@ int main(int argc, char **argv)
     if(!dpy)
         die("failed to open display");
 
+    /* This actually lists EWMH protocols supported by WM */
     Atom supported = XInternAtom(dpy, "_NET_SUPPORTED", True);
     if(supported == None)
         die("EWMH not supported");
