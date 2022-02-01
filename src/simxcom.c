@@ -13,12 +13,12 @@
 #include <X11/Xlib.h>
 #include <X11/Xutil.h>
 
-typedef struct {
+typedef struct Color {
     float red;
     float green;
     float blue;
     float alpha;
-} Color;
+} col;
 
 Window get_active_window(Display *dpy, Window root)
 {
@@ -50,16 +50,30 @@ Window *get_inactive_windows(Display *dpy, Window root, Window active_window,
     if(XGetWindowProperty(dpy, root, prop, 0, 1024, False, XA_WINDOW, &type,
         &format, n_windows, &extra, &result) == Success && result) {
             client_windows = (Window *)result;
+            unsigned long mapped = 0;
+            XWindowAttributes attr;
+            for(int i = 0; i < *n_windows; i++) {
+                XGetWindowAttributes(dpy, client_windows[i], &attr);
+                if(attr.map_state == IsViewable)
+                    mapped++;
+            }
             if(active_window)
-                (*n_windows)--;
-            inactive_windows = (Window *)malloc(*n_windows * sizeof(Window));
+                mapped--;
+            if(mapped == 0) {
+                XFree(client_windows);
+                return NULL;    
+            }
+            inactive_windows = (Window *)malloc(mapped * sizeof(Window));
 
-            for(int i = 0, j = 0; i < *n_windows + 1; i++) {
-                if(client_windows[i] != active_window) {
+            for(int i = 0, j = 0; i < *n_windows; i++) {
+                XGetWindowAttributes(dpy, client_windows[i], &attr);
+                if(client_windows[i] != active_window
+                    && attr.map_state == IsViewable) {
                     inactive_windows[j] = client_windows[i];
                     j++;
                 }
             }
+            *n_windows = mapped;
             XFree(client_windows);
             return inactive_windows;
     }
@@ -69,7 +83,7 @@ Window *get_inactive_windows(Display *dpy, Window root, Window active_window,
 
 char *get_window_name(Display *dpy, Window window)
 {
-    Atom prop = XInternAtom(dpy, "WM_NAME", False), type;
+    Atom prop = XInternAtom(dpy, "WM_NAME", True), type;
     int format;
     unsigned long extra, len;
     unsigned char *result;
@@ -84,7 +98,7 @@ char *get_window_name(Display *dpy, Window window)
         return NULL;
 }
 
-void draw_rectangle(cairo_t *cr, int x, int y, int w, int h, Color c)
+void draw_rectangle(cairo_t *cr, int x, int y, int w, int h, col c)
 {
     cairo_set_source_rgba(cr, c.red, c.green, c.blue, c.alpha);
     cairo_rectangle(cr, x, y, w, h);
@@ -93,7 +107,7 @@ void draw_rectangle(cairo_t *cr, int x, int y, int w, int h, Color c)
 
 Window overlay_active(Display *dpy, Window root, XVisualInfo vinfo,
     Window active, cairo_surface_t* surf, cairo_t* cr, int width, int height,
-    Color color)
+    col color)
 {
     Window r;
     int x, y;
@@ -123,7 +137,7 @@ Window overlay_active(Display *dpy, Window root, XVisualInfo vinfo,
 
 Window *overlay_inactive(Display *dpy, Window root, XVisualInfo vinfo,
     Window *windows, int n_windows, cairo_surface_t **surfs, cairo_t **crs,
-    Color color, int width, int height)
+    col color, int width, int height)
 {
     Window *inactive_overlays = (Window *)malloc(n_windows * sizeof(Window));
     surfs = (cairo_surface_t **)malloc(n_windows * sizeof(cairo_surface_t*));
@@ -179,7 +193,9 @@ void usage() {
            "-ac <hex_color>\n"
            "-ic <hex_color>\n"
            "-ag <width>x<height>\n"
-           "-ig <width>x<height>\n");
+           "-ig <width>x<height>\n"
+           "-ao <opacity>\n"
+           "-io <opacity>\n");
 }
 
 int htoi(char c)
@@ -197,7 +213,7 @@ double round_to(double x, double dp)
     return round(x * pow(10, dp)) / pow(10, dp);
 }
 
-Color parse_color(char *str)
+col parse_color(char *str)
 {
     if(strlen(str) != 8)
         die("invalid color argument: '%s'", str);
@@ -212,7 +228,7 @@ Color parse_color(char *str)
     g = (htoi(str[4]) * 16 + htoi(str[5])) / 255.0;
     b = (htoi(str[6]) * 16 + htoi(str[7])) / 255.0;
 
-    Color color;
+    col color;
     color.red   = round_to(r, 2);
     color.green = round_to(g, 2);
     color.blue  = round_to(b, 2);
@@ -223,21 +239,39 @@ Color parse_color(char *str)
 
 int main(int argc, char **argv)
 {
-    bool quit = false;
-    /* int exit_code = 0; */
-    
-    /* Parse command line arguments */
+    Display *dpy = XOpenDisplay(NULL);
+    if(!dpy)
+        die("failed to open display");
+
+    /* This actually lists EWMH protocols supported by WM */
+    Atom supported = XInternAtom(dpy, "_NET_SUPPORTED", True);
+    if(supported == None)
+        die("EWMH not supported");
+
+    int screen = DefaultScreen(dpy);
+    Window root = RootWindow(dpy, screen);
+
+    XVisualInfo vinfo;
+    if (!XMatchVisualInfo(dpy, screen, 32, TrueColor, &vinfo))
+        die("32-bit color not supported");
+
+
     bool help = false;
     bool version = false;
-    Color ac;
+    col ac;
     bool ac_set = false;
-    Color ic;
+    col ic;
     bool ic_set = false;
     int bw , bh;
     bool box_size_set = false;
     int iww, iwh;
     bool iw_size_set = false;
+    int ao;
+    bool ao_set = false;
+    int io;
+    bool io_set = false;
 
+    /* Parse command line arguments */
     for(int i = 1; i < argc; i++) {
         if(!strcmp("-help", argv[i]) || !strcmp("--help", argv[i])) {
             help = true;
@@ -283,6 +317,24 @@ int main(int argc, char **argv)
                 die("inactive window geometry must be greater than zero");
             continue;
         }
+        if(!strcmp("-ao", argv[i])) {
+            if(++i >= argc)
+                die("%s requires an argument", argv[i-1]);
+            ao = atoi(argv[i]);
+            if(ao < 0 || ao > 255)
+                die("opacity must be a value between 0 and 256");
+            ao_set = true;
+            continue;
+        }
+        if(!strcmp("-io", argv[i])) {
+            if(++i >= argc)
+                die("%s requires an argument", argv[i-1]);
+            io = atoi(argv[i]);
+            if(io < 0 || io > 255)
+                die("opacity must be a value between 0 and 256");
+            io_set = true;
+            continue;
+        }
         die("unrecognized option '%s'", argv[i]);
     }
 
@@ -295,18 +347,8 @@ int main(int argc, char **argv)
         exit(EXIT_SUCCESS);
     }
 
+    bool quit = false;
 
-    Display *dpy = XOpenDisplay(NULL);
-    if(!dpy)
-        die("failed to open display");
-
-    int screen = DefaultScreen(dpy);
-    Window root = RootWindow(dpy, screen);
-
-    XVisualInfo vinfo;
-    if (!XMatchVisualInfo(dpy, screen, 32, TrueColor, &vinfo))
-        die("32-bit color not supported");
-    
     long root_event_mask = PropertyChangeMask;
     XSelectInput(dpy, root, root_event_mask);
 
@@ -319,13 +361,21 @@ int main(int argc, char **argv)
         active_window, (unsigned long *)&n_windows);
 
     if(!ac_set) {
-        ac.alpha = ac.red   = 1.0;
-        ac.green = ac.blue  = 0.0;
+        ac.alpha = 1.0;
+        ac.red   = 1.0;
+        ac.green = 0.0;
+        ac.blue  = 0.0;
     }
     if(!ic_set) {
-        ic.alpha = ic.red   = 1.0;
-        ic.green = ic.blue  = 0.0;
+        ic.alpha = 1.0;
+        ic.red   = 1.0;
+        ic.green = 0.0;
+        ic.blue  = 0.0;
     }
+    if(ao_set)
+        ac.alpha = ao / 255.0;
+    if(io_set)
+        ic.alpha = io / 255.0;
     if(!box_size_set)
         bw = bh = 50;
     if(!iw_size_set)
@@ -372,12 +422,13 @@ int main(int argc, char **argv)
                     free(iw_surfs);
                     free(iw_overlays);
                     free(inactive_windows);
-                    inactive_windows = get_inactive_windows(dpy, root,
-                        active_window, (unsigned long *)&n_windows);
+                }
+                inactive_windows = get_inactive_windows(dpy, root,
+                    active_window, (unsigned long *)&n_windows);
+                if(inactive_windows)
                     iw_overlays = overlay_inactive(dpy, root, vinfo,
                         inactive_windows, n_windows, iw_surfs, iw_crs,
                         ic, iww, iwh);
-                }
             }
         }
     } while(!quit);
